@@ -98,14 +98,14 @@ def eval(args, dataloader, model, matcher, netG, netD, criterionBCE, criterion_m
         for data, jig_l, class_l, data_non_mask, data64_non_mask, cl_data_mask, _ in tqdm(dataloader,
                                                                                           total=len(dataloader)):
 
-            data = data.cuda()
-            jig_l = jig_l.cuda()
-            class_l1 = class_l[0].cuda()
-            class_l2 = class_l[1].cuda()
-            class_l3 = class_l[2].cuda()
-            data_non_mask = data_non_mask.cuda()
-            data64_non_mask = data64_non_mask.cuda()
-            cl_data_mask = cl_data_mask.cuda()
+            data = data
+            jig_l = jig_l
+            class_l1 = class_l[0]
+            class_l2 = class_l[1]
+            class_l3 = class_l[2]
+            data_non_mask = data_non_mask
+            data64_non_mask = data64_non_mask
+            cl_data_mask = cl_data_mask
 
             hidden_feat, jig_logit, label1_logit, label2_logit, label3_logit = model(data)
 
@@ -136,8 +136,8 @@ def eval(args, dataloader, model, matcher, netG, netD, criterionBCE, criterion_m
                 out_cls_false = matcher(hidden_feat)
                 out_cls_true = matcher(hidden_feat_non_mask)
                 y_out_cls_false = torch.from_numpy(
-                    np.where(jig_l.cpu().numpy().copy() > 0, 0, 1)).cuda().long()
-                y_out_cls_true = torch.from_numpy(np.ones(out_cls_true.shape[0])).cuda().long()
+                    np.where(jig_l.cpu().numpy().copy() > 0, 0, 1)).long()
+                y_out_cls_true = torch.from_numpy(np.ones(out_cls_true.shape[0])).long()
 
                 reasonability_loss = criterion_matcher(out_cls_false, y_out_cls_false) \
                                      + criterion_matcher(out_cls_true, y_out_cls_true)
@@ -148,7 +148,7 @@ def eval(args, dataloader, model, matcher, netG, netD, criterionBCE, criterion_m
                 fake_label = 0
                 ################### train D ###################
                 netD.zero_grad()
-                label = torch.FloatTensor(data64_non_mask.shape[0]).cuda()
+                label = torch.FloatTensor(data64_non_mask.shape[0])
                 label.data.resize_(data64_non_mask.shape[0]).fill_(real_label)
                 output = netD(data64_non_mask)
                 errD_real = criterionBCE(output.flatten(), label)
@@ -221,10 +221,10 @@ def main(args):
         netG = torch.nn.DataParallel(netG, device_ids=device_ids)
         netD = torch.nn.DataParallel(netD, device_ids=device_ids)
 
-    model = model.cuda()
-    matcher = matcher.cuda()
-    netG = netG.cuda()
-    netD = netD.cuda()
+    model = model
+    matcher = matcher
+    netG = netG
+    netD = netD
 
     cudnn.benchmark = True
 
@@ -240,9 +240,9 @@ def main(args):
     optimizerG = torch.optim.Adam(netG.parameters(), lr=1e-3, betas=(0.5, 0.999))
 
     # define loss function
-    criterion = torch.nn.CrossEntropyLoss().cuda()
-    criterion_matcher = torch.nn.NLLLoss().cuda()
-    criterionBCE = torch.nn.BCELoss().cuda()
+    criterion = torch.nn.CrossEntropyLoss()
+    criterion_matcher = torch.nn.NLLLoss()
+    criterionBCE = torch.nn.BCELoss()
 
     # load data
     normalize, img_tra, tile_tra = load_norm_transform()
@@ -270,9 +270,11 @@ def main(args):
                                                  # sampler=sampler,
                                                  pin_memory=True)
 
+    
     # starting to train
     for epoch in range(args.start_epoch, args.epochs):
 
+        torch.autograd.set_detect_anomaly(True)
         # switch to train mode
         model.train()
 
@@ -291,27 +293,27 @@ def main(args):
                     _) in enumerate(
                 train_dataloader):
 
-                Jigsaw_img_var = torch.autograd.Variable(Jigsaw_img.cuda())
-                Jigsaw_label_var = torch.autograd.Variable(Jigsaw_label.cuda())
-                data_non_mask = torch.autograd.Variable(data_non_mask.cuda())
-                data64_non_mask = torch.autograd.Variable(data64_non_mask.cuda())
-                cl_data_mask = torch.autograd.Variable(cl_data_mask.cuda())
+                Jigsaw_img_var = torch.autograd.Variable(Jigsaw_img)
+                Jigsaw_label_var = torch.autograd.Variable(Jigsaw_label)
+                data_non_mask = torch.autograd.Variable(data_non_mask)
+                data64_non_mask = torch.autograd.Variable(data64_non_mask)
+                cl_data_mask = torch.autograd.Variable(cl_data_mask)
 
-                original_label1_var = torch.autograd.Variable(original_label[0].cuda())
-                original_label2_var = torch.autograd.Variable(original_label[1].cuda())
-                original_label3_var = torch.autograd.Variable(original_label[2].cuda())
+                original_label1_var = torch.autograd.Variable(original_label[0])
+                original_label2_var = torch.autograd.Variable(original_label[1])
+                original_label3_var = torch.autograd.Variable(original_label[2])
 
                 hidden_feat, pre_Jigsaw_label, pre_class_label1, pre_class_label2, pre_class_label3 = model(
                     Jigsaw_img_var)
 
-                Jig_loss = torch.autograd.Variable(torch.Tensor([0.0])).cuda()
+                Jig_loss = torch.autograd.Variable(torch.Tensor([0.0]))
                 if args.Jigsaw_lambda != 0:
                     Jig_loss = criterion(pre_Jigsaw_label, Jigsaw_label_var)
 
-                class_loss1 = torch.autograd.Variable(torch.Tensor([0.0])).cuda()
-                class_loss2 = torch.autograd.Variable(torch.Tensor([0.0])).cuda()
-                class_loss3 = torch.autograd.Variable(torch.Tensor([0.0])).cuda()
-                class_loss = torch.autograd.Variable(torch.Tensor([0.0])).cuda()
+                class_loss1 = torch.autograd.Variable(torch.Tensor([0.0]))
+                class_loss2 = torch.autograd.Variable(torch.Tensor([0.0]))
+                class_loss3 = torch.autograd.Variable(torch.Tensor([0.0]))
+                class_loss = torch.autograd.Variable(torch.Tensor([0.0]))
                 if args.cluster_lambda != 0:
                     class_loss1 = criterion(pre_class_label1, original_label1_var)
                     class_loss2 = criterion(pre_class_label2, original_label2_var)
@@ -320,31 +322,31 @@ def main(args):
 
                 hidden_feat_non_mask, _, _, _, _ = model(data_non_mask)
                 hidden_feat_mask, _, _, _, _ = model(cl_data_mask)
-                constractive_loss = torch.autograd.Variable(torch.Tensor([0.0])).cuda()
+                constractive_loss = torch.autograd.Variable(torch.Tensor([0.0]))
                 if args.constractive_lambda != 0:
                     constractive_loss = (hidden_feat_non_mask - hidden_feat_mask).pow(2).sum(axis=1).sqrt().mean()
                     AvgConstractiveLoss += constractive_loss.item() / len(train_dataloader)
 
-                reasonability_loss = torch.autograd.Variable(torch.Tensor([0.0])).cuda()
+                reasonability_loss = torch.autograd.Variable(torch.Tensor([0.0]))
                 if args.matcher_lambda != 0:
                     out_cls_false = matcher(hidden_feat)
                     out_cls_true = matcher(hidden_feat_non_mask)
                     y_out_cls_false = torch.from_numpy(
-                        np.where(Jigsaw_label.numpy().copy() > 0, 0, 1)).cuda().long()
-                    y_out_cls_true = torch.from_numpy(np.ones(out_cls_true.shape[0])).cuda().long()
+                        np.where(Jigsaw_label.numpy().copy() > 0, 0, 1)).long()
+                    y_out_cls_true = torch.from_numpy(np.ones(out_cls_true.shape[0])).long()
 
                     reasonability_loss = criterion_matcher(out_cls_false, y_out_cls_false) \
                                          + criterion_matcher(out_cls_true, y_out_cls_true)
                     AvgReasonabilityLoss += reasonability_loss.item() / len(train_dataloader)
 
-                errG = torch.autograd.Variable(torch.Tensor([0.0])).cuda()
-                errD = torch.autograd.Variable(torch.Tensor([0.0])).cuda()
+                errG = torch.autograd.Variable(torch.Tensor([0.0]))
+                errD = torch.autograd.Variable(torch.Tensor([0.0]))
                 if args.is_recover_training == 1:
                     real_label = 1
                     fake_label = 0
                     ################### train D ###################
                     netD.zero_grad()
-                    label = torch.FloatTensor(data64_non_mask.shape[0]).cuda()
+                    label = torch.FloatTensor(data64_non_mask.shape[0])
                     label.data.resize_(data64_non_mask.shape[0]).fill_(real_label)
 
                     output = netD(data64_non_mask)
