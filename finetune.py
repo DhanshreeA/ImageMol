@@ -179,7 +179,7 @@ def main(args):
 
     print(model)
     print("params: {}".format(cal_torch_model_params(model)))
-    model = model.cuda()
+    model = model
     if len(device_ids) > 1:
         model = torch.nn.DataParallel(model, device_ids=device_ids)
 
