@@ -160,7 +160,7 @@ def main(args):
     if args.resume:
         if os.path.isfile(args.resume):  # only support ResNet18 when loading resume
             print("=> loading checkpoint '{}'".format(args.resume))
-            checkpoint = torch.load(args.resume)
+            checkpoint = torch.load(args.resume, map_location=torch.device('cpu'))
             ckp_keys = list(checkpoint['state_dict'])
             cur_keys = list(model.state_dict())
             model_sd = model.state_dict()
